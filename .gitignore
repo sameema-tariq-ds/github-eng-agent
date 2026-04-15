@@ -1,3 +1,14 @@
+# My secrets
+*.pem
+*.key
+steps_by_step.txt
+create_structure.py
+.dockerignore
+.gcloudignore
+tests/
+main.py
+Dockerfile
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -1,0 +1,37 @@
+[project]
+name = "eng-agent"
+version = "0.1.0"
+description = "GitHub engineering agent using LangGraph"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "langgraph",
+    "langchain",
+    "langchain-openai",
+    "PyGithub",
+    "httpx",
+    "python-dotenv",
+    "google-cloud-pubsub",
+    "google-cloud-firestore",
+    "google-cloud-secret-manager",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
