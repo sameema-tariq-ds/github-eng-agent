@@ -1,3 +1,4 @@
+# webhook\server.py
 import hashlib, hmac, json, os
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from agent.tools.pubsub_client import PubSubClient
@@ -18,6 +19,7 @@ def verify_signature(payload_body: bytes, secret_token: str, signature_header: s
     """Verify GitHub webhook authenticity using HMAC SHA-256."""
 
     if not signature_header:
+        logger.warning("x-hub-signature-256 header is missing!")
         raise HTTPException(status_code=403, detail="x-hub-signature-256 header is missing!")
 
     hash_object = hmac.new(secret_token.encode('utf-8'), msg=payload_body, digestmod=hashlib.sha256)
@@ -27,6 +29,7 @@ def verify_signature(payload_body: bytes, secret_token: str, signature_header: s
     print(expected_signature, signature_header)
 
     if not hmac.compare_digest(expected_signature, signature_header):
+        logger.warning("Request signatures didn't match!")
         raise HTTPException(status_code=403, detail="Request signatures didn't match!")
 
 # ---------------------------
@@ -43,22 +46,20 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks):
     signature_header = headers.get("X-Hub-Signature-256", "")
     secret_token = settings.GITHUB_WEBHOOK_SECRET
 
-    print('LENGTH OF PAYLOAD BODY',len(payload_bytes))
-    print('HASH OF PAYLOAD BODY', hashlib.sha256(payload_bytes).hexdigest())
-    print('SECRET TOKEN', (repr(secret_token)))
-    print('PAYLOAD BODY', payload_bytes[:200])
-    print('SIGNATURE HEADER', signature_header)
-    print('EVENT TYPE', event_type)
-    print('DELIVERY ID', delivery_id)
-    
+    logger.info('LENGTH OF PAYLOAD BODY',len(payload_bytes))
+    logger.info('HASH OF PAYLOAD BODY', hashlib.sha256(payload_bytes).hexdigest())
+    logger.info('SECRET TOKEN', (repr(secret_token)))
+    logger.info('PAYLOAD BODY', payload_bytes[:200])
+    logger.info('SIGNATURE HEADER', signature_header)
+    logger.info('EVENT TYPE', event_type)
+    logger.info('DELIVERY ID', delivery_id)
+
     # 1. Security check (HMAC)
-    if not verify_signature(payload_bytes, secret_token, signature_header):
-        logger.warning("Invalid signature detected")
-        raise HTTPException(status_code=401, detail="Invalid signature")
+    verify_signature(payload_bytes, secret_token, signature_header)
 
     # 2. Parse payload safely
     try:
-        payload = json.loads(payload_bytes)
+        payload = json.loads(payload_bytes.decode("utf-8"))
     except json.JSONDecodeError:
         logger.warning("Invalid Json payload")
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
