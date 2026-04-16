@@ -18,3 +18,5 @@ class PubSubClient:
 
         topic_path = self._client.topic_path(self.project_id, topic_name)
         self._client.publish(topic_path, message)
+
+        

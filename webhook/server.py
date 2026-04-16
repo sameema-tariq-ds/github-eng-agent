@@ -6,7 +6,6 @@ from observability.logging import setup_logger
 
 from config.settings import settings
 
-
 logger = setup_logger("github-webhook")
 
 app = FastAPI()

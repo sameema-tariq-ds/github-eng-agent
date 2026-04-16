@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ENV = os.getenv("ENV", "development")
-
 class Settings:
     """
     Central configuration loader for eng-agent.
