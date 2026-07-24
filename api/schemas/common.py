@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict
 class ServiceStatus(StrEnum):
     """API health indicator."""
 
-    OK = "ok"
+    FAIL = "FAIL"
     DEGRADED = "degraded"
     DOWN = "down"
 
