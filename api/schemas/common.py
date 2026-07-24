@@ -11,7 +11,7 @@ class ServiceStatus(StrEnum):
 
     OK = "ok"
     DEGRADED = "degraded"
-    DOWN = "down"
+    UP = "up"
 
 
 class HealthStatus(BaseModel):
