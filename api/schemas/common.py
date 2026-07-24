@@ -10,7 +10,7 @@ class ServiceStatus(StrEnum):
     """API health indicator."""
 
     FAILS = "FAILS"
-    DEGRADED = "degraded"
+    DDDDDD = "DDDDDaded"
     DOWN = "down"
 
 
