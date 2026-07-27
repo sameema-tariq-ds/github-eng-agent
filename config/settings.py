@@ -73,6 +73,9 @@ class Settings:
     max_upload_size_mb: int = 10
     github_webhook_secret: str = ""
     github_token: str = ""
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    github_post_review: bool = False
 
     # ── Derived properties ────────────────────────────────────────────────────
     @property
@@ -108,6 +111,9 @@ class Settings:
             max_upload_size_mb=_get_env_int("MAX_UPLOAD_SIZE_MB", 10),
             github_webhook_secret=_get_env_str("GITHUB_WEBHOOK_SECRET", ""),
             github_token=_get_env_str("GITHUB_TOKEN", ""),
+            openai_api_key=_get_env_str("OPENAI_API_KEY", ""),
+            openai_model=_get_env_str("OPENAI_MODEL", "gpt-4o-mini"),
+            github_post_review=_get_env_bool("GITHUB_POST_REVIEW", False),
         )
 
 

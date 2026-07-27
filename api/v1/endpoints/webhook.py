@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request, status
 
+from agent.orchestrator import review_pull_request
 from api.schemas.common import WebhookAccepted
 from config import get_settings
 from src.core.exceptions import WebhookSignatureError
@@ -22,6 +24,7 @@ router = APIRouter(prefix="/webhook", tags=["webhook"])
 )
 async def github_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     delivery_id: Annotated[str | None, Header(alias="X-GitHub-Delivery")] = None,
     event: Annotated[str | None, Header(alias="X-GitHub-Event")] = None,
     signature: Annotated[str | None, Header(alias="X-Hub-Signature-256")] = None,
@@ -52,6 +55,15 @@ async def github_webhook(
         get_settings().github_webhook_secret,
     )
 
+    if event == "pull_request":
+        try:
+            event_payload = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
+        if event_payload.get("action") in {"opened", "synchronize", "reopened"}:
+            # Keep the webhook response fast. A queue can replace this task in production.
+            background_tasks.add_task(review_pull_request, event_payload)
+
     # Persist delivery_id for deduplication and publish the raw payload to a
     # queue here. Return immediately so GitHub does not retry long processing.
     return WebhookAccepted(delivery_id=delivery_id)
@@ -65,7 +77,7 @@ def validate_webhook_signature(
     """
     if not secret:
         raise WebhookSignatureError(
-            "Webhook secret is not configured on the API; set GITHUB_WEBHOOK_SECRET and restart the service"
+            "Webhook secret is not configured; set GITHUB_WEBHOOK_SECRET and restart the API"
         )
     if not signature:
         raise WebhookSignatureError(
@@ -81,5 +93,5 @@ def validate_webhook_signature(
     )
     if not hmac.compare_digest(signature, expected):
         raise WebhookSignatureError(
-            "Webhook signature does not match GITHUB_WEBHOOK_SECRET; verify the GitHub secret and restart the API"
+            "Webhook signature does not match GITHUB_WEBHOOK_SECRET; verify the secret and restart the API"
         )
