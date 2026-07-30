@@ -11,10 +11,8 @@ from src.agent.tools.github_client import (
     post_pull_request_review,
 )
 from src.agent.tools.review_generator import generate_pull_request_review
-from src.llm.schemas import ReviewOutput
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
 
 
 def review_pull_request(payload: dict[str, Any]) -> None:
@@ -34,7 +32,7 @@ def review_pull_request(payload: dict[str, Any]) -> None:
         )
         return
 
-    if not settings.github_post_review:
+    if not get_settings().github_post_review:
         logger.info(
             "PR review generated but publishing is disabled "
             "repository=%s pr=%s set GITHUB_POST_REVIEW=true to enable",
