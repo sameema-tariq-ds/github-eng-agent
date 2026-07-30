@@ -1,51 +1,38 @@
-"""
-config/environment.py — Environment guards and helpers.
-
-Import these instead of checking `settings.env == "production"` directly.
-They make intent clear at call sites and are easy to mock in tests.
-
-Usage
------
-    from config.environment import require_production, guard_destructive
-
-    @require_not_production          # raises in prod
-    def drop_all_firestore_docs(): ...
-
-    guard_destructive("delete branch")  # logs a warning in dev, raises in prod
-                                        # unless explicitly confirmed
-"""
-
 from __future__ import annotations
 
 import functools
 import os
-from typing import Callable, TypeVar
-
-F = TypeVar("F", bound=Callable)
+from collections.abc import Callable
+from typing import cast
 
 
 def _env() -> str:
     """Read ENV without importing Settings to avoid circular imports."""
-    return os.environ.get("ENV", "development").lower()
+    return os.environ.get("APP_ENV", "development").lower()
 
 
 # ---------------------------------------------------------------------------
 # Boolean helpers
 # ---------------------------------------------------------------------------
 
+
 def is_production() -> bool:
+    """Return whether the configured environment is production."""
     return _env() == "production"
 
 
 def is_development() -> bool:
+    """Return whether the configured environment is development."""
     return _env() == "development"
 
 
 def is_test() -> bool:
+    """Return whether the configured environment is test."""
     return _env() == "test"
 
 
 def is_staging() -> bool:
+    """Return whether the configured environment is staging."""
     return _env() == "staging"
 
 
@@ -53,55 +40,59 @@ def is_staging() -> bool:
 # Decorators
 # ---------------------------------------------------------------------------
 
-def require_production(func: F) -> F:
-    """
-    Decorator: raises RuntimeError if called outside production.
-    Use for functions that should only run in prod (e.g. real Pub/Sub publish).
-    """
+
+def require_production[**P, R](func: Callable[P, R]) -> Callable[P, R]:
+    """Decorate a function so it can run only in production."""
+
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        """Invoke the wrapped function when production is enabled."""
         if not is_production():
             raise RuntimeError(
                 f"{func.__qualname__} must only be called in production "
                 f"(current ENV={_env()!r})."
             )
         return func(*args, **kwargs)
-    return wrapper  # type: ignore[return-value]
+
+    return wrapper
 
 
-def require_not_production(func: F) -> F:
-    """
-    Decorator: raises RuntimeError if called in production.
-    Use for dangerous utility functions (seed data, bulk deletes, etc.).
-    """
+def require_not_production[**P, R](func: Callable[P, R]) -> Callable[P, R]:
+    """Decorate a function so it is blocked in production."""
+
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        """Invoke the wrapped function outside production."""
         if is_production():
             raise RuntimeError(
                 f"{func.__qualname__} must NOT be called in production "
                 f"(current ENV={_env()!r}). This operation is too destructive."
             )
         return func(*args, **kwargs)
-    return wrapper  # type: ignore[return-value]
+
+    return wrapper
 
 
-def development_only(func: F) -> F:
-    """
-    Decorator: no-ops silently if not in development.
-    Use for dev-only helpers like printing debug state.
-    """
+def development_only[**P, R](func: Callable[P, R]) -> Callable[P, R]:
+    """Decorate a function so it executes only in development."""
+
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        """Invoke the wrapped function only in development."""
         if is_development():
             return func(*args, **kwargs)
-    return wrapper  # type: ignore[return-value]
+        return cast(R, None)
+
+    return wrapper
 
 
 # ---------------------------------------------------------------------------
 # Guard function for destructive operations
 # ---------------------------------------------------------------------------
 
+
 def guard_destructive(operation_name: str, *, allow_in_test: bool = True) -> None:
+    """Log or reject destructive operations according to the current environment."""
     """
     Call before any operation that modifies data (commits, deletes, merges).
 
@@ -129,6 +120,7 @@ def guard_destructive(operation_name: str, *, allow_in_test: bool = True) -> Non
     if env == "development":
         # Import here to avoid circular dependency with logging module
         import logging
+
         logging.getLogger("config.environment").warning(
             "Destructive operation in development: %r — proceeding.", operation_name
         )
@@ -138,8 +130,10 @@ def guard_destructive(operation_name: str, *, allow_in_test: bool = True) -> Non
 # Startup environment report (printed once at boot, dev only)
 # ---------------------------------------------------------------------------
 
+
 @development_only
 def print_env_summary() -> None:
+    """Print a non-sensitive development configuration summary."""
     """
     Prints a human-readable summary of key config values at startup.
     Only runs in development. Never prints secrets.
@@ -149,6 +143,7 @@ def print_env_summary() -> None:
         print_env_summary()
     """
     from config.settings import get_settings
+
     s = get_settings()
 
     lines = [
@@ -165,7 +160,7 @@ def print_env_summary() -> None:
         f"  Rate limit/repo  : {s.agent_rate_limit_per_repo_per_hour}/hr",
         f"  Webhook port     : {s.webhook_port}",
         "",
-        "  Secrets: github_token=***, openrouter_api_key=***, webhook_secret=***",
+        "  Secrets: github_token=***, webhook_secret=***",
         "",
     ]
     print("\n".join(lines))

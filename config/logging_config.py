@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
+import sys
 
 LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
@@ -17,19 +14,8 @@ LOG_FORMAT = (
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
-# ---------------------------------------------------------------------------
-# Setup
-# ---------------------------------------------------------------------------
-
-
 def configure_logging(level: int | str = logging.INFO) -> None:
-    """Call once at application startup to configure all handlers.
-
-    Args:
-        level: Root log level. Accepts logging.INFO, logging.DEBUG, or
-               their string equivalents ("INFO", "DEBUG", etc.).
-               Defaults to INFO. Override via the LOG_LEVEL env var.
-    """
+    """Configure application logging handlers once at process startup."""
     # Allow env-var override so staging/prod can dial up DEBUG without code changes
     env_level = os.getenv("LOG_LEVEL")
     if env_level:
@@ -38,17 +24,6 @@ def configure_logging(level: int | str = logging.INFO) -> None:
     os.makedirs(LOG_DIR, exist_ok=True)
 
     formatter = logging.Formatter(fmt=LOG_FORMAT, datefmt=DATE_FORMAT)
-
-    # --- File handler ---
-    # A plain FileHandler is safer under Uvicorn's multi-process/reload mode.
-    # RotatingFileHandler can collide when more than one process tries to roll
-    # the same file at once.
-    file_handler = logging.FileHandler(
-        filename=LOG_FILE,
-        encoding="utf-8",
-    )
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(level)
 
     # --- Console (stdout) handler ---
     console_handler = logging.StreamHandler()
@@ -61,5 +36,17 @@ def configure_logging(level: int | str = logging.INFO) -> None:
 
     # Avoid duplicate handlers if configure_logging() is called more than once
     if not root_logger.handlers:
-        root_logger.addHandler(file_handler)
+        reload_mode = "--reload" in sys.argv or os.getenv(
+            "UVICORN_RELOAD", ""
+        ).lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if not reload_mode:
+            file_handler = logging.FileHandler(filename=LOG_FILE, encoding="utf-8")
+            file_handler.setFormatter(formatter)
+            file_handler.setLevel(level)
+            root_logger.addHandler(file_handler)
         root_logger.addHandler(console_handler)

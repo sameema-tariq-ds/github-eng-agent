@@ -22,10 +22,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        """Attach request metadata, invoke the downstream handler, and log timing."""
         candidate = request.headers.get("x-request-id")
         try:
             request_id = str(UUID(candidate)) if candidate else str(uuid.uuid4())
-        except (ValueError, AttributeError):
+        except ValueError, AttributeError:
             request_id = str(uuid.uuid4())
 
         start = time.perf_counter()

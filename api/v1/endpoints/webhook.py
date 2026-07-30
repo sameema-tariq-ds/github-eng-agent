@@ -2,18 +2,19 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
+import logging
 from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request, status
 
-from agent.orchestrator import review_pull_request
 from api.schemas.common import WebhookAccepted
 from config import get_settings
 from src.core.exceptions import WebhookSignatureError
+from src.events.dispatcher import dispatch_event
 
 router = APIRouter(prefix="/webhook", tags=["webhook"])
+logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -29,6 +30,7 @@ async def github_webhook(
     event: Annotated[str | None, Header(alias="X-GitHub-Event")] = None,
     signature: Annotated[str | None, Header(alias="X-Hub-Signature-256")] = None,
 ) -> WebhookAccepted:
+    """Authenticate, validate, and asynchronously queue a GitHub webhook."""
     payload = await request.body()
     if len(payload) > get_settings().MAX_BODY_BYTES:
         raise HTTPException(
@@ -55,26 +57,17 @@ async def github_webhook(
         get_settings().github_webhook_secret,
     )
 
-    if event == "pull_request":
-        try:
-            event_payload = json.loads(payload)
-        except json.JSONDecodeError as exc:
-            raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
-        if event_payload.get("action") in {"opened", "synchronize", "reopened"}:
-            # Keep the webhook response fast. A queue can replace this task in production.
-            background_tasks.add_task(review_pull_request, event_payload)
+    # run pull_review event
+    logger.info('Run the pull request')
+    dispatch_event(event, payload, background_tasks)
 
-    # Persist delivery_id for deduplication and publish the raw payload to a
-    # queue here. Return immediately so GitHub does not retry long processing.
     return WebhookAccepted(delivery_id=delivery_id)
 
 
 def validate_webhook_signature(
     payload: bytes, signature: str | None, secret: str
 ) -> None:
-    """
-    Verify the HMAC SHA-256 signature of a GitHub webhook request.
-    """
+    """Verify the HMAC SHA-256 signature of a GitHub webhook request."""
     if not secret:
         raise WebhookSignatureError(
             "Webhook secret is not configured; set GITHUB_WEBHOOK_SECRET and restart the API"
