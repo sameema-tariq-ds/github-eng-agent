@@ -26,5 +26,6 @@ COPY . .
 # Expose Cloud Run port
 EXPOSE 8080
 
-# Start FastAPI app
-CMD ["uvicorn", "webhook.server:app", "--host", "0.0.0.0", "--port", "8080"]
+# Start FastAPI app. Reload mode is development-only: the app writes logs under
+# the project directory, which would otherwise cause Uvicorn to restart forever.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

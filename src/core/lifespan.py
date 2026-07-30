@@ -15,7 +15,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialize and clean up application-scoped resources."""
     settings = get_settings()
-    logger.info("Starting %s v%s [env=%s]", settings.app_name, settings.app_version, settings.environment)
+    logger.info(
+        "Starting %s v%s [env=%s]",
+        settings.app_name,
+        settings.app_version,
+        settings.environment,
+    )
 
     yield
 
