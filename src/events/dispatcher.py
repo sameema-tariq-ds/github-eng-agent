@@ -9,8 +9,6 @@ from config.settings import get_settings
 from src.agent.agents.pr_reviewer import review_pull_request
 from src.core.exceptions import InvalidWebhookPayloadError
 
-settings = get_settings()
-
 
 def dispatch_event(
     event: str,
@@ -29,5 +27,5 @@ def dispatch_event(
     if not isinstance(event_payload, dict):
         raise InvalidWebhookPayloadError
 
-    if event_payload.get("action") in settings.supported_pull_request_actions:
+    if event_payload.get("action") in get_settings().supported_pull_request_actions:
         background_tasks.add_task(review_pull_request, event_payload)
