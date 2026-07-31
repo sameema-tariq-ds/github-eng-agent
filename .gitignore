@@ -5,7 +5,6 @@ steps_by_step.txt
 create_structure.py
 .dockerignore
 .gcloudignore
-tests/
 logs/
 
 
