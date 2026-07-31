@@ -1,1 +1,1 @@
-"""Application core package."""
+"""Core application services."""

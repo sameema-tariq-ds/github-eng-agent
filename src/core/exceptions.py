@@ -26,6 +26,11 @@ class WebhookSignatureError(AppError):
     error = "invalid_webhook_signature"
 
 
+class GithubTokenError(AppError):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    error = "invalid_github_token"
+
+
 class GitHubAPIError(AppError):
     status_code = status.HTTP_502_BAD_GATEWAY
     error = "github_api_error"
